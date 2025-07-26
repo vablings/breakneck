@@ -17,10 +17,8 @@ fn main() -> color_eyre::eyre::Result<()> {
     log::info!("Starting debug console...");
 
     let proc = OwnedProcess::find_first_by_name("helloworldtesting").unwrap();
-    //let proc = OwnedProcess::from_pid(13112).unwrap();
     let syringe = Syringe::for_process(proc);
-    //let injected_payload = syringe.inject(r"C:\Users\vc\Desktop\not-byfron\x64\Debug\not-byfron.dll").unwrap();
-    let injected_payload = syringe.inject("./target/debug/inject_me.dll").unwrap();
+    let _injected_payload = syringe.inject("./target/debug/inject_me.dll").unwrap();
 
     let (mut stream, address) = listener.accept()?;
     log::info!("{address} has connected");

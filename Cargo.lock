@@ -194,7 +194,6 @@ dependencies = [
  "chacha20",
  "color-eyre",
  "dll-syringe",
- "iced-x86",
  "log",
  "pelite",
  "rand",

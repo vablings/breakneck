@@ -16,17 +16,15 @@ impl EncryptedPages {
             0: Mutex::new(HashSet::new()),
         }
     }
-    pub fn insert_or_update(&self, address: u64, encrypted: bool, trap_page: bool) {
+    pub fn insert_or_update(&self, address: u64, encrypted: bool) {
         let new_page = PageInformation {
             address,
             encrypted,
-            trap_page,
             last_accessed: Instant::now(),
         };
         let mut guard = self.0.lock().unwrap();
         if let Some(mut existing) = guard.take(&new_page) {
             existing.encrypted = encrypted;
-            existing.trap_page = trap_page;
             existing.last_accessed = Instant::now();
             guard.insert(existing);
         } else {
@@ -40,7 +38,6 @@ impl EncryptedPages {
             .get(&PageInformation {
                 address,
                 encrypted: false,
-                trap_page: false,
                 last_accessed: Instant::now(),
             })
             .cloned()
@@ -51,7 +48,7 @@ impl EncryptedPages {
         let now = Instant::now();
         guard
             .iter()
-            .filter(|info| !info.encrypted && !info.trap_page)
+            .filter(|info| !info.encrypted)
             //we filter out any pages that have been recently decrypted because well. performance
             .filter(|info| now.duration_since(info.last_accessed) > Duration::from_millis(500))
             .map(|page| page.address)
@@ -63,7 +60,6 @@ impl EncryptedPages {
 pub struct PageInformation {
     address: u64,
     encrypted: bool,
-    trap_page: bool,
     last_accessed: Instant,
 }
 

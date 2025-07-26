@@ -1,10 +1,7 @@
 mod pages;
 
-use chacha20::ChaCha20;
-// Import relevant traits
 use chacha20::cipher::{KeyIvInit, StreamCipher};
-use iced_x86::{Decoder, Instruction};
-
+use chacha20::ChaCha20;
 
 use pelite::pe64::Pe;
 use pelite::pe64::PeView;
@@ -70,81 +67,14 @@ fn encrypt_text_section() {
         let start = image_base as u64 + section.VirtualAddress as u64;
         let page_count = section.SizeOfRawData / 0x1000;
 
-        find_pages();
-
         for i in 0..page_count {
             let page_address = start + i as u64 * 0x1000;
-            //encrypt_page(page_address as _);
+            encrypt_page(page_address as _);
         }
         log::info!("Encrypted {} pages!", page_count);
     }
 }
 
-fn find_pages() {
-    unsafe {
-        let image_base = GetModuleHandleA(std::ptr::null());
-        if image_base == std::ptr::null_mut() {
-            panic!("Failed to get base module");
-        }
-        let pe_view = PeView::module(image_base as *const u8);
-        let section = pe_view
-            .section_headers()
-            .iter()
-            .find(|section| (section.Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0)
-            .expect("No sections with MEM_EXECUTE");
-        
-        // Use VirtualSize instead of SizeOfRawData for in-memory size
-        let section_size = if section.VirtualSize > 0 {
-            section.VirtualSize
-        } else {
-            section.SizeOfRawData
-        };
-        
-        let text = slice::from_raw_parts(
-            (image_base as u64 + section.VirtualAddress as u64) as *const u8,
-            section_size as usize,
-        );
-        
-        let mut decoder = Decoder::with_ip(64, text, section.VirtualAddress.into(), 0);
-        let mut straddler_count = 0;
-        let mut total_instructions = 0;
-        
-        while decoder.can_decode() {
-            let mut instr = Instruction::default();
-            decoder.decode_out(&mut instr);
-            
-            let start = instr.ip();
-            let len = instr.len() as u64;
-            let end = start + len - 1; // End is inclusive (last byte of instruction)
-            
-            // Check if instruction crosses page boundary
-            let start_page = start & !0xFFF;
-            let end_page = end & !0xFFF;
-            
-            total_instructions += 1;
-            
-            if start_page != end_page {
-                straddler_count += 1;
-                log::info!(
-                    "[Straddler] {:#x} - {:#x} ({} bytes) {} | Pages: {:#x} -> {:#x}",
-                    start,
-                    start + len,
-                    len,
-                    instr,
-                    start_page,
-                    end_page
-                );
-            } 
-        }
-        
-        log::info!(
-            "Found {} page-straddling instructions out of {} total ({:.2}%)",
-            straddler_count,
-            total_instructions,
-            (straddler_count as f64 / total_instructions as f64) * 100.0
-        );
-    }
-}
 fn encrypt_page(page_address: usize) {
     unsafe {
         log::info!("Encrypting page {page_address:#x}");
@@ -165,7 +95,7 @@ fn encrypt_page(page_address: usize) {
             &mut old_protect,
         );
 
-        PAGE_TRACKER.insert_or_update(page_address as u64, true, false);
+        PAGE_TRACKER.insert_or_update(page_address as u64, true);
     }
 }
 
@@ -189,7 +119,7 @@ fn decrypt_page(page_address: usize) {
             &mut old_protect,
         );
 
-        PAGE_TRACKER.insert_or_update(page_address as u64, false, false);
+        PAGE_TRACKER.insert_or_update(page_address as u64, false);
     }
 }
 
